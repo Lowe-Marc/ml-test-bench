@@ -1,1 +1,1 @@
-# TODO: This should be an abstraction to read environments (generated data, kaggle data, etc)
+# TODO: Generate data, or use Kaggle

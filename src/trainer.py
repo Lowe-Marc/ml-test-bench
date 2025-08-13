@@ -5,36 +5,62 @@ import json
 import re
 import numpy as np
 
+from src.data_reader import DataReader
+
 class Trainer:
-    def __init__(self, num_training_iterations, learning_rate, batch_size, model, training_data_path, device="cpu"):
+    def __init__(self, num_epochs, learning_rate, model, data_reader, device="cpu"):
         # self._model = model.to(device) # TODO
         
-        self._num_training_iterations = num_training_iterations
+        self._num_epochs = num_epochs
         self._model = model
         self._optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         self._device = device
-        self._training_batches = np.load(os.path.join(training_data_path, "data.npy"))
-        print(self._training_batches.shape)
-        self._anomalies = np.load(os.path.join(training_data_path, "anomalies.npy"))
+        self._data_reader = data_reader
 
     def run_training(self):
         """
-        Run the training loop for a specified number of batches.
+        Run the training loop for a specified number of epochs.
+        Each epoch processes the entire dataset.
         """
-        print("Training")
-        for iteration in range(self._num_training_iterations):
-            batch = self._training_batches[iteration][0]
-            batch = torch.from_numpy(batch).float().unsqueeze(0).to(self._device)
-            loss = self._train_step(batch)
-            print(f"Iteration {iteration}, Loss: {loss.item()}")
+        print(f"Training for {self._num_epochs} epochs")
+        total_batches = 0
+        
+        for epoch in range(self._num_epochs):
+            print(f"Epoch {epoch + 1}/{self._num_epochs}")
+            epoch_losses = []
+            batch_count = 0
+            
+            # Reset data reader for new epoch
+            self._data_reader.reset()
+            
+            while True:
+                batch = self._data_reader.read()
+                if batch is None:
+                    print(f"Epoch {epoch + 1} complete - processed {batch_count} batches")
+                    break
+                
+                batch = torch.from_numpy(batch).float().unsqueeze(-1).to(self._device)
+                loss = self._train_step(batch)
+                epoch_losses.append(loss.item())
+                
+                batch_count += 1
+                total_batches += 1
+                
+                if batch_count % 10 == 0:  # Log every 10 batches
+                    print(f"  Batch {batch_count}, Loss: {loss.item():.6f}")
+            
+            avg_epoch_loss = np.mean(epoch_losses) if epoch_losses else 0
+            print(f"Epoch {epoch + 1} average loss: {avg_epoch_loss:.6f}")
 
+        final_loss = epoch_losses[-1] if epoch_losses else 0
         self.save_experiment(self._model, {
-            "num_training_iterations": self._num_training_iterations,
+            "num_epochs": self._num_epochs,
+            "total_batches": total_batches,
             "learning_rate": self._optimizer.param_groups[0]['lr'],
-            "batch_size": self._training_batches.shape[0]
-        }, loss)
+            "final_loss": final_loss
+        }, final_loss)
 
-        return loss
+        return final_loss
 
     def save_experiment(self, model, hyperparameters, loss):
         """
@@ -65,7 +91,7 @@ class Trainer:
         # Save loss (loss)
         loss_path = os.path.join(exp_dir, "loss.txt")
         with open(loss_path, 'w') as f:
-            f.write(str(loss.item()))
+            f.write(str(loss))
 
         print(f"Experiment saved to {exp_dir}")
 
