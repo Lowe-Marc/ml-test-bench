@@ -1,0 +1,5 @@
+{
+    "num_partitions": 500,
+    "data_size": 1000,
+    "num_anomalies": 5
+}

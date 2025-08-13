@@ -1,0 +1,9 @@
+# Python artifacts
+.venv
+*.egg-info
+__pycache__
+
+# Operational artifacts
+environments
+experiments
+data

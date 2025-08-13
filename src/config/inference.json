@@ -1,0 +1,4 @@
+{
+    "experiment_path": "experiments/experiment_1/model.pt",
+    "original_data_path": "environments/env_1/"
+}
